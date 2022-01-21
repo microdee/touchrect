@@ -429,3 +429,5 @@ conan.lock
 conanfile.txt
 conaninfo.txt
 graph_info.json
+/out/build-clion
+.idea

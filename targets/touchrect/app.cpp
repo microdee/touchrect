@@ -1,6 +1,7 @@
 #include "app.h"
 
 #include "imgui.h"
+#include "pointer_injection.h"
 
 using namespace ImGui;
 
@@ -50,6 +51,8 @@ void app::draw_gui()
     {
         pointer.second.draw_gui();
     }
+
+    pointer_injection::singleton.inject(present_pointers);
 
     previous_pointers = present_pointers;
     present_pointers.clear();
