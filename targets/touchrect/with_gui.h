@@ -1,6 +1,7 @@
 
 #pragma once
 #include <cstdint>
+#include <optional>
 
 template<typename TWithGui>
 concept with_gui = requires(TWithGui a)
@@ -11,5 +12,12 @@ concept with_gui = requires(TWithGui a)
 template<typename TWndProcListener>
 concept wndproc_listener = requires(TWndProcListener a)
     {
-        { a.wndproc(nullptr, uint32_t(), uint64_t(), uint64_t()) } -> int64_t;
+        {
+            a.wndproc(
+                std::optional<int64_t>(), // previous result
+                nullptr, // HWND
+                uint32_t() // message
+                uint64_t(), uint64_t() // wParam, lParam
+            )
+        } -> std::optional<LRESULT>;
     };

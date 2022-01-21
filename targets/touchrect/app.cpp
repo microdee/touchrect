@@ -4,6 +4,10 @@
 
 using namespace ImGui;
 
+app::app(HWND window) : main_window(window)
+{
+}
+
 void app::draw_gui()
 {
     ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoDocking
@@ -40,7 +44,15 @@ void app::draw_gui()
     SetNextWindowDockID(dockspace_id, ImGuiCond_Once);
 
     // your window here instead of the Demo
-    ShowDemoWindow(&open);
+    // ShowDemoWindow(&open);
+
+    for (auto& pointer : present_pointers)
+    {
+        pointer.second.draw_gui();
+    }
+
+    previous_pointers = present_pointers;
+    present_pointers.clear();
 
     if (BeginMainMenuBar())
     {
@@ -68,7 +80,35 @@ void app::draw_gui()
     End();
 }
 
-LRESULT app::wndproc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
+std::optional<LRESULT> app::wndproc(std::optional<LRESULT> previous, HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
-    return 0;
+    std::optional<LRESULT> result;
+    if (hWnd == main_window)
+    {
+        switch (msg)
+        {
+        case WM_POINTERENTER:
+        case WM_POINTERLEAVE:
+        case WM_POINTERDOWN:
+        case WM_POINTERUPDATE:
+        case WM_POINTERUP:
+        case WM_POINTERWHEEL:
+        case WM_POINTERHWHEEL:
+        {
+            auto pid = GET_POINTERID_WPARAM(wParam);
+
+            auto pointer = previous_pointers.contains(pid)
+                ? user_pointer({ hWnd, msg, wParam, lParam }, previous_pointers[pid])
+                : user_pointer({ hWnd, msg, wParam, lParam });
+
+            present_pointers.insert_or_assign(pid, pointer);
+
+            if (pointer.type == PT_MOUSE) {
+                result = DefWindowProc(hWnd, msg, wParam, lParam);
+            }
+            result = 0;
+        }
+        }
+    }
+    return result;
 }
