@@ -7,6 +7,7 @@
 #include <memory>
 #include "common_concepts.h"
 #include <functional>
+#include "tuple_binary_operators.h"
 
 struct user_pointer_source
 {
@@ -24,6 +25,8 @@ public:
 	user_pointer(const user_pointer_source& in_source, const user_pointer& in_previous);
 
 	void draw_gui();
+	float get_speed() const;
+	t_float2 get_direction() const;
 
 	bool valid = false;
 	user_pointer_source source {};
@@ -36,6 +39,6 @@ public:
 	std::shared_ptr<POINTER_PEN_INFO> pen_info {};
 	std::shared_ptr<POINTER_TOUCH_INFO> touch_info {};
 
-	std::tuple<float, float> position {0.0f, 0.0f};
-	std::tuple<float, float> velocity {0.0f, 0.0f};
+	t_float2 position {0.0f, 0.0f};
+	t_float2 velocity {0.0f, 0.0f};
 };

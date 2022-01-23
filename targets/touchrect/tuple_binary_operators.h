@@ -1,6 +1,9 @@
 #pragma once
 
+#include <tuple>
+#include <functional>
 #include "imgui.h"
+#include "common_concepts.h"
 
 template<IsNumber TFirst>
 std::tuple<TFirst> tuple_binary_operator(
@@ -68,21 +71,9 @@ typedef std::tuple<float, float, float, float> t_float4;
 
 namespace ImGui
 {
-	t_float2 as_tuple(const ImVec2& vec)
-	{
-		return { vec.x, vec.y };
-	}
-	t_float4 as_tuple(const ImVec4& vec)
-	{
-		return { vec.x, vec.y, vec.z, vec.w };
-	}
+	t_float2 as_tuple(const ImVec2& vec);
+	t_float4 as_tuple(const ImVec4& vec);
 
-	ImVec2 as_vector(const t_float2& vec)
-	{
-		return { std::get<0>(vec), std::get<1>(vec) };
-	}
-	ImVec4 as_vector(const t_float4& vec)
-	{
-		return { std::get<0>(vec), std::get<1>(vec), std::get<2>(vec), std::get<3>(vec) };
-	}
+	ImVec2 as_vector(const t_float2& vec);
+	ImVec4 as_vector(const t_float4& vec);
 }

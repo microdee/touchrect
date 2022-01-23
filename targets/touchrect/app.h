@@ -18,6 +18,10 @@ private:
     bool show_imgui_metrics = false;
     bool show_style_editor = false;
     bool show_imgui_about = false;
+    bool show_about = false;
+    bool show_imgui_demo = false;
+    bool show_settings = false;
+    int selected_settings = 0;
     HWND main_window = NULL;
 
     std::unordered_map<WORD, user_pointer> present_pointers;
