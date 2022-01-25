@@ -65,6 +65,62 @@ std::tuple<T...> operator /(std::tuple<T...> a, std::tuple<T...> b)
 	return tuple_binary_operator<T...>(a, b, [](auto av, auto bv) { return av / bv; });
 }
 
+/////////////////////
+
+template<IsNumber Tb, IsNumber TFirst>
+std::tuple<TFirst> tuple_binary_operator(
+    std::tuple<TFirst> a,
+    Tb b,
+    std::function<TFirst(TFirst a, Tb b)> op
+) {
+    return std::tuple<TFirst>(
+        op(std::get<0>(a), b)
+    );
+}
+
+template<IsNumber Tb, IsNumber TFirst, IsNumber... T>
+std::tuple<TFirst, T...> tuple_binary_operator(
+        std::tuple<TFirst, T...> a,
+        Tb b,
+        std::function<TFirst(TFirst a, Tb b)> op
+) {
+    auto a_tail = std::apply(
+        [](TFirst h, T... tail)
+        {
+            return std::make_tuple(tail...);
+        }, a
+    );
+
+    return std::tuple_cat(
+        std::tuple<TFirst>(op(std::get<0>(a), b)),
+        tuple_binary_operator<T...>(a_tail, b, op)
+    );
+}
+
+template<IsNumber Tb, IsNumber... T>
+std::tuple<T...> operator -(std::tuple<T...> a, Tb b)
+{
+    return tuple_binary_operator<Tb, T...>(a, b, [](auto av, auto bv) { return av - bv; });
+}
+
+template<IsNumber Tb, IsNumber... T>
+std::tuple<T...> operator +(std::tuple<T...> a, Tb b)
+{
+    return tuple_binary_operator<Tb, T...>(a, b, [](auto av, auto bv) { return av + bv; });
+}
+
+template<IsNumber Tb, IsNumber... T>
+std::tuple<T...> operator *(std::tuple<T...> a, Tb b)
+{
+    return tuple_binary_operator<Tb, T...>(a, b, [](auto av, auto bv) { return av * bv; });
+}
+
+template<IsNumber Tb, IsNumber... T>
+std::tuple<T...> operator /(std::tuple<T...> a, Tb b)
+{
+    return tuple_binary_operator<Tb, T...>(a, b, [](auto av, auto bv) { return av / bv; });
+}
+
 typedef std::tuple<float, float> t_float2;
 typedef std::tuple<float, float, float> t_float3;
 typedef std::tuple<float, float, float, float> t_float4;

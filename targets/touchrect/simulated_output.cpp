@@ -38,54 +38,94 @@ void simulated_output::draw_gui()
 
 void simulated_output::move_cursor(const std::unordered_map<WORD, user_pointer> &input)
 {
-
+    analog_output(input, cursor_momentum, config.mouse.movement,
+        [this](const user_pointer& pointer)
+        {
+            INPUT input[1] {
+                [this, &pointer]
+                {
+                    INPUT $ {};
+                    $.type = INPUT_MOUSE;
+                    [this, &pointer](decltype($.mi)& $)
+                    {
+                        $ = {};
+                        $.dwFlags = MOUSEEVENTF_MOVE;
+                        auto dxy = config.mouse.movement.apply(pointer.velocity);
+                        $.dx = std::get<0>(dxy);
+                        $.dy = std::get<1>(dxy);
+                    }($.mi);
+                    return std::move($);
+                }()
+            };
+            SendInput(1, input, sizeof(INPUT));
+        },
+        [this, &input]() { return input.size() == config.mouse.move_fingers.fingers; },
+        config.mouse.enabled
+    );
 }
 
 void simulated_output::scroll(const std::unordered_map<WORD, user_pointer>& input)
 {
-    auto body = [this](const user_pointer& pointer)
-    {
-        INPUT input[2] {
-            [this, &pointer]
-            {
-                INPUT $ {};
-                $.type = INPUT_MOUSE;
-                [this, &pointer](decltype($.mi)& $)
+    analog_output(input, scroll_momentum, config.mouse.scroll.movement,
+        [this](const user_pointer& pointer)
+        {
+            INPUT input[2] {
+                [this, &pointer]
                 {
-                    $ = {};
-                    $.dwFlags = MOUSEEVENTF_WHEEL;
-                    $.mouseData = config.mouse.scroll.movement.apply(std::get<1>(pointer.velocity));
-                }($.mi);
-                return std::move($);
-            }(),
-            [this, &pointer]
-            {
-                INPUT $ {};
-                $.type = INPUT_MOUSE;
-                [this, &pointer](decltype($.mi)& $)
+                    INPUT $ {};
+                    $.type = INPUT_MOUSE;
+                    [this, &pointer](decltype($.mi)& $)
+                    {
+                        $ = {};
+                        $.dwFlags = MOUSEEVENTF_WHEEL;
+                        $.mouseData = config.mouse.scroll.movement.apply(std::get<1>(pointer.velocity));
+                    }($.mi);
+                    return std::move($);
+                }(),
+                [this, &pointer]
                 {
-                    $ = {};
-                    $.dwFlags = MOUSEEVENTF_HWHEEL;
-                    $.mouseData = config.mouse.scroll.movement.apply(-std::get<0>(pointer.velocity));
-                }($.mi);
-                return std::move($);
-            }()
-        };
-        SendInput(2, input, sizeof(INPUT));
-    };
+                    INPUT $ {};
+                    $.type = INPUT_MOUSE;
+                    [this, &pointer](decltype($.mi)& $)
+                    {
+                        $ = {};
+                        $.dwFlags = MOUSEEVENTF_HWHEEL;
+                        $.mouseData = config.mouse.scroll.movement.apply(-std::get<0>(pointer.velocity));
+                    }($.mi);
+                    return std::move($);
+                }()
+            };
+            SendInput(2, input, sizeof(INPUT));
+        },
+        [this, &input]() { return input.size() == config.mouse.scroll.fingers.fingers; },
+        config.mouse.enabled
+    );
+}
 
-    if(config.mouse.enabled && input.size() == config.mouse.scroll.fingers.fingers)
+void simulated_output::analog_output(
+    const std::unordered_map<WORD, user_pointer>& input,
+    momentum_state& momentum,
+    const movement_profile& movement,
+    std::function<void(const user_pointer&)> body,
+    std::function<bool()> enabled,
+    bool feature_enabled
+) {
+    if(feature_enabled && enabled())
     {
         for(auto& kvp : input)
         {
-            scroll_momentum.tick(kvp.second);
+            momentum.tick(kvp.second);
             body(kvp.second);
         }
     }
-    else if(config.mouse.enabled && scroll_momentum.cached_pointer.get_speed() > 2)
+    else if(feature_enabled && momentum.cached_pointer.speed() > 2)
     {
-        scroll_momentum.tick(config.mouse.scroll.movement.momentum);
-        body(scroll_momentum.cached_pointer);
+        momentum.tick(movement.momentum);
+        body(momentum.cached_pointer);
+    }
+    else
+    {
+        momentum = {};
     }
 }
 
@@ -116,6 +156,15 @@ void movement_profile::draw_gui()
 float movement_profile::apply(float in)
 {
     return std::copysign(std::pow(std::abs(in * speed), gamma), in * speed);
+}
+
+t_float2 movement_profile::apply(t_float2 in)
+{
+    return
+    {
+        apply(std::get<0>(in)),
+        apply(std::get<1>(in))
+    };
 }
 
 void scroll_config::draw_gui()
@@ -206,13 +255,13 @@ void momentum_state::tick(float momentum)
 
     if(record)
     {
-        max_speed = cached_pointer.get_speed();
+        max_speed = cached_pointer.speed();
         max_velocity = cached_pointer.velocity;
-        direction = cached_pointer.get_direction();
+        direction = cached_pointer.direction();
     }
     record = false;
 
-    if(momentum <= 0 || cached_pointer.get_speed() < 3)
+    if(momentum <= 0 || cached_pointer.speed() < 3)
     {
         cached_pointer = {};
         return;
@@ -220,7 +269,7 @@ void momentum_state::tick(float momentum)
 
     float reduce_speed = min(max_speed * iv, momentum * iv);
 
-    auto reduce_by = direction * t_float2(reduce_speed, reduce_speed);
+    auto reduce_by = direction * reduce_speed;
     cached_pointer.velocity = cached_pointer.velocity - reduce_by;
     cached_pointer.position = cached_pointer.position + cached_pointer.velocity;
 }
@@ -241,19 +290,11 @@ void momentum_state::tick(const user_pointer& pointer)
         last_pointers.begin(), last_pointers.end(),
         [](const user_pointer& a, const user_pointer& b)
         {
-            return a.get_speed() < b.get_speed();
+            return a.speed() < b.speed();
         }
     );
 
     cached_pointer = *result;
-
-#if 0
-    auto max_vel = prev_pointer.get_speed() > pointer.get_speed()
-        ? prev_pointer.velocity
-        : pointer.velocity;
-
-    cached_pointer.velocity = max_vel;
-#endif
 }
 
 float momentum_state::interval_sec()
@@ -272,5 +313,5 @@ float momentum_state::interval_sec()
 }
 
 bool momentum_state::is_contributing() {
-    return !record && cached_pointer.get_speed() >= 3;
+    return !record && cached_pointer.speed() >= 3;
 }

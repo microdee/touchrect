@@ -23,13 +23,14 @@ struct movement_profile
     float momentum = 0.0f;
 
     float apply(float in);
+    t_float2 apply(t_float2 in);
     void draw_gui();
 };
 
 struct scroll_config
 {
     finger_count fingers {};
-    movement_profile movement {1.5f, 1.15f, 400.0f};
+    movement_profile movement {1.5f, 1.2f, 400.0f};
 
     void draw_gui();
 };
@@ -95,6 +96,16 @@ public:
 private:
 
     momentum_state scroll_momentum {};
+    momentum_state cursor_momentum {};
+
+    void analog_output(
+        const std::unordered_map<WORD, user_pointer>& input,
+        momentum_state& momentum,
+        const movement_profile& movement,
+        std::function<void(const user_pointer& pointer)> body,
+        std::function<bool()> enabled,
+        bool feature_enabled
+    );
 
     void scroll(const std::unordered_map<WORD, user_pointer>& input);
     void move_cursor(const std::unordered_map<WORD, user_pointer>& input);

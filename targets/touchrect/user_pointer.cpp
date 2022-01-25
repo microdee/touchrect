@@ -2,7 +2,7 @@
 #include "imgui.h"
 #include "fmt/format.h"
 
-user_pointer::user_pointer(const user_pointer_source& in_source)
+user_pointer::user_pointer(const user_pointer_source& in_source, std::optional<user_pointer> in_previous)
 	: source(in_source)
 	, id(GET_POINTERID_WPARAM(in_source.wParam))
 	, valid(true)
@@ -30,13 +30,19 @@ user_pointer::user_pointer(const user_pointer_source& in_source)
 
 	std::get<0>(position) = static_cast<float>(info.ptPixelLocation.x);
 	std::get<1>(position) = static_cast<float>(info.ptPixelLocation.y);
-}
 
-user_pointer::user_pointer(const user_pointer_source& in_source, const user_pointer& in_previous)
-	: user_pointer(in_source)
-{
-	previous = std::make_shared<user_pointer>(in_previous);
-	velocity = position - in_previous.position;
+    timestamp = GetTickCount64();
+
+    if(in_previous.has_value())
+    {
+        previous = std::make_shared<user_pointer>(in_previous.value());
+        created_on = previous->created_on;
+        velocity = position - previous->position;
+    }
+    else
+    {
+        created_on = timestamp;
+    }
 }
 
 void user_pointer::draw_gui()
@@ -44,12 +50,12 @@ void user_pointer::draw_gui()
 	namespace ui = ImGui;
 
 	auto pos_offs = position + t_float2{ 100.0f, 100.0f };
-	ui::GetForegroundDrawList()->AddLine(ui::as_vector(position), ui::as_vector(pos_offs), 0xFFFFFFFF, 2.0f);
-
-    ui::SetNextWindowPos(ui::as_vector(pos_offs));
-    ui::SetNextWindowSize({ 350.0f, 200.0f });
     ui::PushID(id);
     {
+        ui::GetForegroundDrawList()->AddLine(ui::as_vector(position), ui::as_vector(pos_offs), 0xFFFFFFFF, 2.0f);
+
+        ui::SetNextWindowPos(ui::as_vector(pos_offs));
+        ui::SetNextWindowSize({ 350.0f, 200.0f });
         ui::Begin(fmt::format("pointer {0}", id).c_str());
         {
             float pos[2] { std::get<0>(position), std::get<1>(position) };
@@ -63,15 +69,21 @@ void user_pointer::draw_gui()
     ui::PopID();
 }
 
-float user_pointer::get_speed() const
+float user_pointer::speed() const
 {
     float vel_x = std::get<0>(velocity);
     float vel_y = std::get<1>(velocity);
     return std::sqrt(vel_x * vel_x + vel_y * vel_y);
 }
 
-t_float2 user_pointer::get_direction() const
+t_float2 user_pointer::direction() const
 {
-    auto speed = get_speed();
-    return speed == 0 ? t_float2(0,0) : velocity / t_float2(speed, speed);
+    auto speed_c = speed();
+    return speed_c == 0 ? t_float2(0,0) : velocity / t_float2(speed_c, speed_c);
+}
+
+float user_pointer::age_sec() const
+{
+    auto ms = timestamp - created_on;
+    return static_cast<float>(ms) * 0.001;
 }

@@ -162,7 +162,18 @@ std::optional<LRESULT> app::wndproc(std::optional<LRESULT> previous, HWND hWnd, 
                 result = DefWindowProc(hWnd, msg, wParam, lParam);
             }
             result = 0;
-        }
+        } break;
+        case WM_POINTERACTIVATE:
+        {
+            result = PA_NOACTIVATE;
+        } break;
+        case WM_MOUSEACTIVATE:
+        {
+            if(!present_pointers.empty())
+            {
+                result = MA_NOACTIVATE;
+            }
+        } break;
         }
     }
     return result;

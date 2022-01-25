@@ -21,12 +21,12 @@ class user_pointer
 {
 public:
 	user_pointer() {}
-	user_pointer(const user_pointer_source& in_source);
-	user_pointer(const user_pointer_source& in_source, const user_pointer& in_previous);
+	user_pointer(const user_pointer_source& in_source, std::optional<user_pointer> in_previous = {});
 
 	void draw_gui();
-	float get_speed() const;
-	t_float2 get_direction() const;
+	float speed() const;
+	t_float2 direction() const;
+	float age_sec() const;
 
 	bool valid = false;
 	user_pointer_source source {};
@@ -41,4 +41,7 @@ public:
 
 	t_float2 position {0.0f, 0.0f};
 	t_float2 velocity {0.0f, 0.0f};
+
+	ULONGLONG created_on = 0;
+	ULONGLONG timestamp = 0;
 };
